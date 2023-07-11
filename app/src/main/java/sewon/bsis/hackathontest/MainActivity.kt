@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_AUTH = 777
 
     private lateinit var connect_button: Button
+    private lateinit var send_button: Button
 
     private val uniqueID = UUID.randomUUID().toString()
 
@@ -54,6 +56,49 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "wifi name: $wifi_name")
             Log.d(TAG, "host_ip: $host_ip")
 
+            Toast.makeText(applicationContext, wifi_name+"으로 연결하십시오.", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+            send_button.visibility = View.VISIBLE
+        }
+    }
+
+    private var pManager: PowerManager? = null
+    private var alarmMgr: AlarmManager? = null
+
+    @SuppressLint("BatteryLife")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        Log.d(TAG, "uid is $uniqueID")
+
+        connect_button = findViewById(R.id.connect_btn)
+        send_button = findViewById(R.id.send_btn)
+
+        pManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        if(!pManager!!.isIgnoringBatteryOptimizations(packageName)) {
+            val permIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            permIntent.data = Uri.parse("package:$packageName")
+            startActivity(permIntent)
+        }
+
+//        Toast.makeText(this, "Spotify와 연결 중입니다. 기다려주세요.", Toast.LENGTH_LONG).show()
+        val builder =
+            AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.TOKEN, redirectUri)
+        builder.setScopes(arrayOf("user-top-read", "user-follow-read", "user-read-private"))
+        val request = builder.build()
+        AuthorizationClient.openLoginActivity(this, REQUEST_CODE_AUTH, request)
+
+        connect_button.setOnClickListener {
+            if (token == null) {
+                Toast.makeText(this, "token is null", Toast.LENGTH_SHORT).show()
+            } else {
+                qrLauncher.launch(ScanOptions())
+            }
+        }
+
+        send_button.setOnClickListener {
             alarmIntent = Intent(applicationContext, PingAlarmReceiver::class.java).apply {
                 this.putExtra("host_ip", host_ip);
                 this.putExtra("uid", uniqueID)
@@ -77,47 +122,9 @@ class MainActivity : AppCompatActivity() {
                     stream.close()
                     socket.close()
                 }.start()
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
+            Toast.makeText(this, "Succesfully connected with Passione!", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private var pManager: PowerManager? = null
-    private var alarmMgr: AlarmManager? = null
-
-    @SuppressLint("BatteryLife")
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        Log.d(TAG, "uid is $uniqueID")
-
-        pManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        if(!pManager!!.isIgnoringBatteryOptimizations(packageName)) {
-            val permIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-            permIntent.data = Uri.parse("package:$packageName")
-            startActivity(permIntent)
-        }
-
-        Toast.makeText(this, "Spotify와 연결 중입니다. 기다려주세요.", Toast.LENGTH_LONG).show()
-        val builder =
-            AuthorizationRequest.Builder(clientId, AuthorizationResponse.Type.TOKEN, redirectUri)
-        builder.setScopes(arrayOf("user-top-read", "user-follow-read", "user-read-private"))
-        val request = builder.build()
-        AuthorizationClient.openLoginActivity(this, REQUEST_CODE_AUTH, request)
-
-        connect_button = findViewById(R.id.connect_btn)
-        connect_button.setOnClickListener {
-            if (token == null) {
-                Toast.makeText(this, "token is null", Toast.LENGTH_SHORT).show()
-            } else {
-                qrLauncher.launch(ScanOptions())
-            }
-        }
-    }
-    override fun onRestart() {
-        super.onRestart()
     }
 
     @SuppressLint("SetTextI18n")
