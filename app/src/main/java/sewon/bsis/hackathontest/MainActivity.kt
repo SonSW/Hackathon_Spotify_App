@@ -7,8 +7,12 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
@@ -17,6 +21,8 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.journeyapps.barcodescanner.ScanContract
@@ -41,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var connect_button: Button
     private lateinit var send_button: Button
     private lateinit var editText: EditText
+    private lateinit var statusTextView: TextView
 
     private val uniqueID = UUID.randomUUID().toString()
 
@@ -70,6 +77,7 @@ class MainActivity : AppCompatActivity() {
 
     private var pManager: PowerManager? = null
     private var alarmMgr: AlarmManager? = null
+    private var connMgr: ConnectivityManager? = null
 
     @SuppressLint("BatteryLife")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,9 +89,11 @@ class MainActivity : AppCompatActivity() {
         connect_button = findViewById(R.id.connect_btn)
         send_button = findViewById(R.id.send_btn)
         editText = findViewById(R.id.editText)
+        statusTextView = findViewById(R.id.statusTextView)
 
         pManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        connMgr = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
         if(!pManager!!.isIgnoringBatteryOptimizations(packageName)) {
             val permIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
@@ -122,6 +132,17 @@ class MainActivity : AppCompatActivity() {
             )
             Log.d(TAG, "alarmMgr!!.setInexactRepeating done.")
 
+            connMgr!!.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onLost(network: Network) {
+                    alarmMgr!!.cancel(alarmIntent)
+                    Toast.makeText(applicationContext, "WiFi Lost! Disconnected from $project_name...", Toast.LENGTH_LONG).show()
+                    Handler(Looper.getMainLooper()).post {
+                        statusTextView.text = "Not Connected"
+                    }
+                    Log.d(TAG, "connection Lost! alarmMgr canceled.")
+                }
+            })
+
             myName = editText.text.toString()
             if (myName.isBlank())
                 myName = "No Name"
@@ -136,6 +157,7 @@ class MainActivity : AppCompatActivity() {
                 }.start()
             } catch (_: Exception) { }
             Toast.makeText(this, "Succesfully connected with ${project_name}!", Toast.LENGTH_SHORT).show()
+            statusTextView.text = "Connected"
         }
     }
 
