@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Hackathon Test</string>
+    <string name="app_name">Passione Client</string>
+    <string name="project_name">Passione</string>
 </resources>

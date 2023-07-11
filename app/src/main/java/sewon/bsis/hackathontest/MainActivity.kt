@@ -8,14 +8,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.text.InputType
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.journeyapps.barcodescanner.ScanContract
@@ -30,6 +31,7 @@ import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "Sewon"
+    private lateinit var project_name: String
 
     private val clientId = "a0c1fdefc1184a0ca550ac5162bb9c70"
     private val redirectUri = "http://localhost:8888/callback"
@@ -38,12 +40,14 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var connect_button: Button
     private lateinit var send_button: Button
+    private lateinit var editText: EditText
 
     private val uniqueID = UUID.randomUUID().toString()
 
     private lateinit var wifi_name: String
     private lateinit var host_ip: String
     private var token: String? = null
+    private lateinit var myName: String
 
     private lateinit var alarmIntent: PendingIntent
 
@@ -58,7 +62,9 @@ class MainActivity : AppCompatActivity() {
 
             Toast.makeText(applicationContext, wifi_name+"으로 연결하십시오.", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+
             send_button.visibility = View.VISIBLE
+            editText.visibility = View.VISIBLE
         }
     }
 
@@ -70,9 +76,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         Log.d(TAG, "uid is $uniqueID")
+        project_name = resources.getString(R.string.project_name)
 
         connect_button = findViewById(R.id.connect_btn)
         send_button = findViewById(R.id.send_btn)
+        editText = findViewById(R.id.editText)
 
         pManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -114,16 +122,20 @@ class MainActivity : AppCompatActivity() {
             )
             Log.d(TAG, "alarmMgr!!.setInexactRepeating done.")
 
+            myName = editText.text.toString()
+            if (myName.isBlank())
+                myName = "No Name"
+            editText.inputType = InputType.TYPE_NULL
             try {
                 Thread {
                     val socket = Socket(host_ip, 59876)
                     val stream = DataOutputStream(socket.getOutputStream())
-                    stream.writeUTF("$uniqueID:$token")
+                    stream.writeUTF("$uniqueID:$myName:$token")
                     stream.close()
                     socket.close()
                 }.start()
             } catch (_: Exception) { }
-            Toast.makeText(this, "Succesfully connected with Passione!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Succesfully connected with ${project_name}!", Toast.LENGTH_SHORT).show()
         }
     }
 
